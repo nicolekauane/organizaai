@@ -1,13 +1,13 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View, StyleSheet, Platform } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { router, useFocusEffect } from 'expo-router';
 import FormModal from '../components/FormModal';
 import SubjectItem from '../components/SubjectItem';
 import { consultarMaterias, criarMateria, atualizarMateria, excluirMateria } from '../services/materiasService';
 import { consultarTarefas } from '../services/tarefasService';
 import { mapSubjectForDisplay } from '../utils/dataMappers';
 import { confirmAction } from '../utils/confirmAction';
-import { TEST_USER_ID } from '../config/testUser';
+import { useAuth } from '../context/AuthContext';
 import { palette, sharedStyles } from '../styles/theme';
 
 const colors = [
@@ -28,7 +28,8 @@ function Field({ label, ...props }) {
   return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput {...props} style={styles.input} placeholderTextColor={palette.cinzaMedio} /></View>;
 }
 
-export default function SubjectsScreen({ navigation }) {
+export default function SubjectsScreen() {
+  const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -44,17 +45,18 @@ export default function SubjectsScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    if (!TEST_USER_ID) {
+    if (!user) {
       setSubjects([]); setTasks([]); setError(null); setLoading(false);
       return () => { active = false; };
     }
     setLoading(true); setError(null);
-    Promise.all([consultarMaterias(TEST_USER_ID), consultarTarefas(TEST_USER_ID)])
+    Promise.all([consultarMaterias(), consultarTarefas()])
       .then(([nextSubjects, nextTasks]) => { if (active) { setSubjects(nextSubjects); setTasks(nextTasks); } })
       .catch((e) => { if (active) setError(e.message || 'Não foi possível carregar as matérias.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [refreshKey]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Refresh key deliberately reloads after mutations.
+  }, [refreshKey, user]));
 
   function openNew() { setEditing(null); setForm(emptyForm); setFormError(null); setVisible(true); }
   function openEdit(subject) {
@@ -62,7 +64,7 @@ export default function SubjectsScreen({ navigation }) {
     setFormError(null); setVisible(true);
   }
   async function save() {
-    if (!TEST_USER_ID || saving) return;
+    if (!user || saving) return;
     const nome = form.nome.trim(), professor = form.professor.trim(), cor = form.cor.trim();
     if (!nome) { setFormError('Informe o nome da matéria.'); return; }
     if (nome.length > 100) { setFormError('O nome aceita até 100 caracteres.'); return; }
@@ -71,8 +73,8 @@ export default function SubjectsScreen({ navigation }) {
     setSaving(true); setFormError(null);
     try {
       const data = { nome, professor: professor || null, cor: cor || null };
-      if (editing) await atualizarMateria(editing.id, data, TEST_USER_ID);
-      else await criarMateria(data, TEST_USER_ID);
+      if (editing) await atualizarMateria(editing.id, data);
+      else await criarMateria(data);
       setVisible(false); setRefreshKey((key) => key + 1);
     } catch (e) { setFormError(e.message || 'Não foi possível salvar a matéria.'); }
     finally { setSaving(false); }
@@ -83,7 +85,7 @@ export default function SubjectsScreen({ navigation }) {
     const ok = await confirmAction('Excluir matéria', 'Deseja excluir "' + subject.nome + '"? As tarefas relacionadas continuarão sem essa matéria.');
     if (!ok) { actionLock.current = false; return; }
     setBusyId(String(subject.id)); setError(null);
-    try { await excluirMateria(subject.id, TEST_USER_ID); setRefreshKey((key) => key + 1); }
+    try { await excluirMateria(subject.id); setRefreshKey((key) => key + 1); }
     catch (e) { setError(e.message || 'Não foi possível excluir a matéria.'); }
     finally { actionLock.current = false; setBusyId(null); }
   }
@@ -92,19 +94,18 @@ export default function SubjectsScreen({ navigation }) {
     <View style={sharedStyles.container}>
       <View style={styles.headerRow}>
         <Text style={sharedStyles.title}>{'Matérias'}</Text>
-        <TouchableOpacity style={sharedStyles.secondaryButton} onPress={() => navigation.navigate('Home')}><Text style={sharedStyles.secondaryButtonText}>{'Início'}</Text></TouchableOpacity>
+        <TouchableOpacity style={sharedStyles.secondaryButton} onPress={() => router.navigate('/')}><Text style={sharedStyles.secondaryButtonText}>{'Início'}</Text></TouchableOpacity>
       </View>
-      <TouchableOpacity style={[sharedStyles.primaryButton, styles.newButton]} onPress={openNew} disabled={!TEST_USER_ID || !!busyId}><Text style={sharedStyles.primaryButtonText}>{'+ Nova matéria'}</Text></TouchableOpacity>
+      <TouchableOpacity style={[sharedStyles.primaryButton, styles.newButton]} onPress={openNew} disabled={!user || !!busyId}><Text style={sharedStyles.primaryButtonText}>{'+ Nova matéria'}</Text></TouchableOpacity>
       <Text style={styles.summary}>Acompanhe o andamento das suas disciplinas.</Text>
       {loading && <ActivityIndicator color={palette.bordo} style={styles.loading} />}
-      {!TEST_USER_ID && <Text style={styles.stateMessage}>Defina EXPO_PUBLIC_TEST_USER_ID em .env.local para usar a API.</Text>}
       {!!error && <View><Text style={styles.errorMessage}>{error}</Text><TouchableOpacity onPress={() => setRefreshKey((key) => key + 1)}><Text style={styles.retry}>Tentar novamente</Text></TouchableOpacity></View>}
-      {!loading && !error && !!TEST_USER_ID && subjects.length === 0 && <Text style={styles.stateMessage}>Nenhuma matéria encontrada. Cadastre a primeira.</Text>}
+      {!loading && !error && !!user && subjects.length === 0 && <Text style={styles.stateMessage}>Nenhuma matéria encontrada. Cadastre a primeira.</Text>}
       {subjects.map((subject) => <View key={subject.id} style={busyId === String(subject.id) && styles.busy} pointerEvents={busyId ? 'none' : 'auto'}>
         <SubjectItem subject={mapSubjectForDisplay(subject, tasks)} onEdit={() => openEdit(subject)} onDelete={() => remove(subject)} />
         {busyId === String(subject.id) && <ActivityIndicator color={palette.bordo} />}
       </View>)}
-      <TouchableOpacity style={sharedStyles.secondaryButton} onPress={() => navigation.navigate('Tasks')}><Text style={sharedStyles.secondaryButtonText}>Ver tarefas</Text></TouchableOpacity>
+      <TouchableOpacity style={sharedStyles.secondaryButton} onPress={() => router.navigate('/tarefas')}><Text style={sharedStyles.secondaryButtonText}>Ver tarefas</Text></TouchableOpacity>
     </View>
     <FormModal visible={visible} title={editing ? 'Editar matéria' : 'Nova matéria'} onClose={() => !saving && setVisible(false)} onSubmit={save} submitLabel={editing ? 'Salvar alterações' : 'Cadastrar matéria'} submitting={saving} error={formError}>
       <Field label="Nome *" value={form.nome} onChangeText={(nome) => setForm({ ...form, nome })} maxLength={100} placeholder="Ex.: Matemática" autoCapitalize="words" />

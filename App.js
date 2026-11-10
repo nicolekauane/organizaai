@@ -1,11 +1,2 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import AppNavigator from './src/navigation/AppNavigator';
-
-export default function App() {
-  return (
-    <NavigationContainer>
-      <AppNavigator />
-    </NavigationContainer>
-  );
-}
+// Expo Router owns the root component; package.json points to expo-router/entry.
+export { default } from './src/app/_layout';

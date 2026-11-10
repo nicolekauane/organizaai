@@ -1,13 +1,5 @@
-﻿const { promisify } = require('node:util');
-const { randomBytes, scrypt: scryptCallback } = require('node:crypto');
 const pool = require('../config/database');
-const scrypt = promisify(scryptCallback);
-
-async function hashPassword(password) {
-  const salt = randomBytes(16).toString('hex');
-  const derived = await scrypt(password, salt, 64);
-  return `scrypt$${salt}$${derived.toString('hex')}`;
-}
+const { hashPassword } = require('../services/passwords');
 
 exports.list = async (req, res, next) => {
   try {

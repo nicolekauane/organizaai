@@ -45,3 +45,22 @@ yarn-error.*
 /backend/.env
 /backend/.env.*
 !/backend/.env.example
+
+# Environment variants and local database exports
+.env
+.env.*
+!.env.example
+*.sql.bak
+*.sql.gz
+*.dump
+
+# Private backups (keep all database exports outside the repository)
+backup/
+backups/
+*.bak
+*.backup
+*backup*.sql
+*dump*.sql
+*backup*.zip
+*backup*.7z
+*backup*.tar*

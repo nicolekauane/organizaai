@@ -1,78 +1,122 @@
 # Organiza Aí
 
-Aplicativo de organização escolar desenvolvido com React Native e Expo Web. A API usa Node.js e Express, com persistência em MySQL.
+Aplicativo de organização escolar com React Native, Expo SDK 58 e Expo Router para Android, iOS e Web. API Node.js/Express com MySQL.
 
-## Entrega 2
+## Entrega 3 - autenticação integrada
 
-O aplicativo consulta e gerencia matérias e tarefas associadas ao ID temporário de usuário configurado localmente:
+O aplicativo permite cadastrar Aluno ou Responsável, entrar por um único login e sair pelo botão **Sair**. Alunos mantêm suas telas de organização; responsáveis acessam somente o acompanhamento autorizado. Veja [o frontend dos perfis](docs/ENTREGA_3_FRONTEND.md).
 
-- cadastra, consulta, edita e exclui matérias, com professor opcional e seleção de cor;
-- cadastra, consulta, edita e exclui tarefas, com descrição, data de entrega e matéria opcionais;
-- permite concluir e reabrir tarefas;
-- exibe na tela Início totais de tarefas pendentes e concluídas e até três próximas atividades;
-- mostra o progresso das matérias com base nas tarefas associadas;
-- atualiza os dados ao retornar às telas e informa carregamento, erros e listas vazias.
+As funcionalidades da Entrega 2 foram mantidas:
 
-Login, JWT e autenticação não fazem parte da Entrega 2; ficam para a Entrega 3. O ID configurado é apenas um filtro enviado pelo cliente e não protege os dados contra falsificação.
+- CRUD de matérias com professor opcional, paleta e cor personalizada;
+- CRUD de tarefas com descrição, data e matéria opcionais, prioridade e status;
+- conclusão e reabertura de tarefas;
+- totais e até três próximas atividades no Início;
+- progresso das matérias calculado pelas tarefas concluídas;
+- carregamento, mensagens de erro e estados vazios.
 
-## Requisitos
+## Executar localmente
 
-- Node.js e npm para executar o backend e o Expo;
-- MySQL para persistência;
-- React Native, Expo e Expo Web para o aplicativo (as dependências estão em `package.json`).
+1. Tenha Node.js, npm e MySQL disponíveis.
+2. Para instalação nova, crie `organiza_ai` e importe `database/organiza_ai.sql`. **Não reimporte o script em um banco existente.** A migração da etapa 4.1 já foi aplicada ao banco principal deste ambiente. Não a reaplique; consulte database/README.md para outros ambientes.
+3. Execute `npm ci` dentro de `backend`, configure `backend/.env` a partir do exemplo (sem sobrescrever um ambiente existente), incluindo conexão MySQL e `JWT_SECRET` privado. Veja [backend/README.md](backend/README.md).
+4. Inicie a API com `npm start` dentro de `backend`. Confira `/api/health` e `/api/health/db`.
+5. Na raiz, execute `npm ci` e `npm run web`. Para desenvolvimento móvel, use `npm start`.
+6. Abra o aplicativo, crie sua conta, volte ao login e entre.
 
-## Banco de dados MySQL
+A API usa `http://localhost:3000` por padrão. Opcionalmente configure `EXPO_PUBLIC_API_URL` no ambiente local do frontend e reinicie o Expo. Para aparelho físico, use o IP de rede do computador que executa a API, acessível pelo dispositivo. Em produção, use HTTPS.
 
-Inicie o MySQL, crie o banco `organiza_ai` e importe `database/organiza_ai.sql` pelo MySQL Workbench ou cliente MySQL. O script cria as tabelas com relacionamentos entre usuários, matérias e tarefas. Depois configure a conexão no ambiente local do backend.
+`EXPO_PUBLIC_TEST_USER_ID` foi aposentado e não é lido pelo aplicativo; não precisa ser configurado. Nenhum arquivo `.env` existente foi alterado pela integração.
 
-## Backend — Node.js, Express e MySQL
+## Navegação
 
-1. Entre em `backend` e instale as dependências com `npm install`.
-2. Copie `backend/.env.example` para `backend/.env` e preencha os valores locais de conexão com o MySQL. Não use credenciais reais no arquivo de exemplo nem o envie ao GitHub.
-3. Inicie o servidor com `npm start`; para desenvolvimento com reinício automático, use `npm run dev`.
-4. Confira `http://localhost:3000/api/health` e `http://localhost:3000/api/health/db`.
+As rotas ficam em `src/app/`; as telas e componentes reutilizáveis permanecem fora dessa pasta.
 
-A API expõe CRUD para usuários, matérias e tarefas. O aplicativo nesta entrega usa os recursos de matérias e tarefas. Detalhes dos endpoints estão em [backend/README.md](backend/README.md).
+| Rota | Acesso |
+| --- | --- |
+| `/login` | Público, sem sessão autenticada |
+| `/cadastro` | Público, cria Aluno ou Responsável |
+| `/` | Aluno, Início |
+| `/tarefas` | Aluno |
+| `/materias` | Aluno |
+| `/responsaveis` | Aluno: solicitações e controle de vínculos |
+| `/acompanhamento` | Responsável: alunos e solicitações |
+| `/acompanhamento/:alunoId` | Responsável: detalhes autorizados, somente leitura |
 
-## Expo Web
+Os layouts usam `Stack.Protected`: sem sessão, tentativas de abrir rotas privadas levam ao login. Ao sair, o grupo privado é desmontado e removido do histórico permitido. O controle definitivo de acesso continua no backend.
 
-1. Na raiz do projeto, instale as dependências com `npm install`.
-2. Crie `.env.local` na raiz e informe o ID de um usuário que já exista no banco:
+## Sessão e segurança
 
-   ```env
-   EXPO_PUBLIC_TEST_USER_ID=ID_EXISTENTE
-   ```
+- O access token fica **somente em memória**, inclusive no Web. Não há AsyncStorage, localStorage, cookie de sessão ou refresh token.
+- Após login, `/api/auth/me` confirma o usuário antes da abertura das telas privadas.
+- O serviço central adiciona `Authorization: Bearer TOKEN` às requisições privadas. Cadastro e login não enviam Bearer.
+- Expiração por tempo (15 minutos), retomada do aplicativo e respostas `401` encerram a sessão com mensagem amigável.
+- Logout apaga token e usuário, desmonta as telas com seus dados e cancela/descarta requisições da sessão anterior. Respostas atrasadas não restauram dados nem encerram uma nova conta.
+- Recarregar a página ou reiniciar o aplicativo exige novo login. Logout é local: um token copiado permanece válido no servidor até expirar; não há revogação imediata nesta etapa.
+- `JWT_SECRET` pertence exclusivamente ao backend. Nunca coloque segredos em variáveis `EXPO_PUBLIC_*`.
+- Propriedade dos dados é determinada pelo token no backend, sem confiar em `usuario_id` fornecido pelo cliente. Os serviços do aplicativo não enviam esse campo.
 
-   Essa variável é incorporada ao bundle público; informe somente o ID, nunca uma senha ou segredo. Reinicie o Expo depois de alterá-la.
-3. Inicie o aplicativo com `npm run web`.
-
-A URL da API está centralizada em `src/services/api.js` e, por padrão, é `http://localhost:3000`. No Expo Web, `localhost` deve ser o computador que executa a API. Para um dispositivo físico, use o IP local do computador e permita conexões pela rede.
+O `.gitignore` mantém arquivos de ambiente, `node_modules` e builds locais fora do Git. Não registre senhas ou tokens em logs.
 
 ## Uso
 
-- **Matérias:** `+ Nova matéria` abre o formulário com nome obrigatório e professor opcional. Há uma paleta, seletor de cor no Web e entrada hexadecimal. Os cards permitem editar e excluir.
-- **Tarefas:** `+ Nova tarefa` permite preencher título obrigatório, descrição, data, prioridade, status e matéria. A matéria é opcional; as matérias existentes são carregadas da API. O calendário mostra `DD/MM/AAAA` e a API recebe `YYYY-MM-DD`. Os cards permitem editar, excluir, concluir e reabrir tarefas.
-- **Início:** mostra totais reais e até três tarefas pendentes com prazo mais próximo.
-- O progresso de cada matéria é a porcentagem das tarefas vinculadas que estão concluídas. Ao excluir uma matéria, as tarefas relacionadas permanecem sem matéria, conforme a chave estrangeira.
+**Matérias:** `+ Nova matéria`, nome obrigatório, professor opcional, paleta e cor hexadecimal; seletor de cor adicional no Web. Cards permitem editar e excluir.
 
-## Variáveis locais e segurança
+**Tarefas:** `+ Nova tarefa`, título obrigatório, descrição, calendário, prioridade, status e matéria opcional. Datas exibidas em `DD/MM/AAAA` e enviadas como `YYYY-MM-DD`. Cards permitem editar, excluir, concluir e reabrir.
 
-O `.gitignore` exclui `.env`, `.env.local`, `backend/.env`, `node_modules` e saídas de build. `backend/.env.example` contém apenas nomes e valores de exemplo. Confira os arquivos locais de ambiente com `git check-ignore .env .env.local backend/.env`.
+**Início:** totais reais e até três atividades pendentes ordenadas por prazo. O progresso de cada matéria usa a proporção de tarefas concluídas. Excluir matéria mantém tarefas sem vínculo.
 
-O `usuario_id` temporário é um filtro informado pelo cliente, não autenticação. A API ainda não autentica a identidade da pessoa que faz a requisição; um cliente pode falsificar o ID. Login, JWT e autorização confiável ficam para a Entrega 3.
+## Verificações automatizadas
 
-## Roteiro de teste manual
+Na raiz:
 
-1. Inicie o MySQL e o backend; confirme `/api/health/db`.
-2. Configure em `.env.local` o ID de um usuário existente, inicie o Expo com `npm run web` e navegue pelas telas Início, Tarefas e Matérias.
-3. Cadastre, edite e exclua uma matéria; experimente a paleta e a cor personalizada.
-4. Cadastre uma tarefa vinculada a uma matéria, edite-a, conclua-a e reabra-a. Confira a data exibida e o comportamento opcional da data.
-5. Exclua uma tarefa com confirmação e confira as contagens na tela Início.
-6. Confira que arquivos de ambiente locais são ignorados com `git check-ignore .env .env.local backend/.env`.
+```sh
+npm test
+npm run lint
+npm run typecheck
+npx expo export --platform web
+```
 
-## Endpoints usados pelo aplicativo
+No backend: `npm test`.
 
-- `GET/POST /api/materias`, `PUT/DELETE /api/materias/:id`
-- `GET/POST /api/tarefas`, `PUT/DELETE /api/tarefas/:id`
+Os testes do frontend usam serviços reais com `fetch` simulado e relógio controlado para sessão. Cobrem validação, cadastro, login, `/me`, falhas, expiração, logout e respostas atrasadas. Os testes do backend usam HTTP real com adaptador SQL em memória e cobrem isolamento entre contas. Nenhuma suíte modifica o MySQL real. Typecheck cobre layouts TypeScript e seus contratos; o código JavaScript legado continua sem checagem estrita (`checkJs: false`). O lint preserva a sincronização de mês do calendário legado com uma exceção localizada de regra.
 
-As consultas usam `usuario_id`; POST/PUT o enviam no corpo e DELETE na query string. Esses filtros não substituem autenticação.
+## Roteiro manual no navegador
+
+1. Acesse `/tarefas` sem login: deve abrir o login. Confira campos vazios, e-mail inválido, confirmação divergente e mostrar/ocultar senha.
+2. Cadastre uma conta A. Confira sucesso, retorno ao login, senha incorreta e login correto.
+3. Cadastre, edite e exclua matérias; confira paleta e cor personalizada.
+4. Cadastre tarefas com e sem prazo/matéria; confira calendário, data, edição, conclusão e reabertura. Confira resumo e progresso.
+5. Exclua uma matéria com tarefas: elas devem permanecer sem matéria.
+6. Saia e entre em uma conta B: os dados de A não devem aparecer. Cadastre dados de B e volte à conta A para confirmar o isolamento.
+7. Saia durante carregamento, tente voltar pelo histórico e recarregue uma rota privada: dados anteriores não devem reaparecer.
+8. Aguarde os 15 minutos de validade: deve retornar ao login com aviso; novo login deve funcionar.
+9. Teste API desligada, janela estreita, teclado e rolagem no celular. Esses testes visuais e a integração com MySQL real não são substituídos pelos testes automatizados.
+
+
+## Frontend dos perfis - Entrega 3
+
+Cadastro com Aluno selecionado por padrão e opção Responsável. O login confirma o perfil em /api/auth/me. Expo Router protege os grupos por perfil; permissões e vínculo continuam sendo validados pelo backend em todas as consultas.
+
+O aluno acessa **Responsáveis** pelo cabeçalho. Pode autorizar/recusar pendências e revogar acesso com confirmação. As decisões enviam solicitado_em sem conversão. Conflitos 409/503 atualizam a lista e exigem nova decisão, sem retry automático.
+
+O responsável pode solicitar acompanhamento por e-mail, recebe a mensagem genérica da API e visualiza seus vínculos e alunos autorizados. Detalhes mostram matérias, tarefas, descrições, contagens e progresso, sem handlers de escrita. Renovar vínculo exige reenviar o e-mail após o cooldown de 24 horas, sempre com nova aprovação do aluno.
+
+Dados de acompanhamento ficam apenas em memória, são descartados ao perder foco, ir ao background, sair, expirar ou perder acesso (401/403/404). No retorno e a cada 30 segundos enquanto a tela está ativa, uma nova consulta confirma o acesso. Sem push do servidor, a revogação na outra conta é percebida na próxima consulta; nenhum cache persistente foi adicionado.
+
+Validação desta etapa: 26 testes do frontend, 33 testes do backend (o teste MySQL opt-in ficou desabilitado), lint, typecheck, exportação Web e smoke de navegador com API simulada aprovados. Para repetir o smoke, após exportar o Web, execute npm run test:web:perfis. Requer Edge headless; pode usar ORGANIZA_AI_BROWSER para indicar outro executável Chromium. Não acessa a API real: intercepta respostas e bloqueia chamadas de rede a /api.
+
+Roteiro manual, relação de arquivos e ocorrência de teste: [docs/ENTREGA_3_FRONTEND.md](docs/ENTREGA_3_FRONTEND.md).
+
+## Revisão final da Entrega 3 — 10/11/2026
+
+Consulte [o relatório final](docs/REVISAO_FINAL_ENTREGA_3.md) para correções, arquivos desta revisão, resultados e pendências. Frontend: 26 testes; backend: 33 aprovados e 1 MySQL opt-in não executado; lint, typecheck, Web, smoke e Expo Doctor aprovados. Auditoria backend zerada; frontend apresenta 10 alertas moderados em ferramentas na consulta atual (11 na revisão anterior). Os fluxos principais já foram confirmados manualmente pelo usuário; consulte os resultados abaixo e as verificações complementares ainda pendentes.
+
+A revisão não alterou .env, esquema ou registros do banco, não trocou a branch e não fez commit/push. O segredo JWT exposto no contexto da conversa deve ser substituído localmente antes da publicação.
+## Fechamento com testes manuais confirmados
+
+Usuário confirmou login do aluno, preservação das tarefas/matérias, cadastro/login do responsável, solicitação, autorização, revogação e bloqueio de acesso após revogar. Esses resultados foram registrados em [Entrega 3](docs/ENTREGA_3_FRONTEND.md).
+
+Testes repetidos: frontend 26 aprovados; backend 33 aprovados e 1 MySQL opt-in não executado; lint, typecheck, compilação Web, smoke e Expo Doctor 20/20 aprovados. [Análise dos alertas e segurança](docs/SEGURANCA_ENTREGA_3.md): backend zerado; frontend com 10 moderados na consulta atual, sem correção compatível publicada para as duas dependências de origem. Não foi aplicado --force.
+
+Código e documentação preparados para commit/push com os riscos registrados. Substitua localmente o segredo exposto antes do envio final recomendado. Expiração, recusa, renovação após 24 horas, CRUD completo/calendário e dispositivos físicos continuam como testes complementares não confirmados. Nenhum commit/push ou alteração de .env/banco foi realizado neste fechamento.

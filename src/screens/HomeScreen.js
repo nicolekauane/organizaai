@@ -1,32 +1,33 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { router, useFocusEffect } from 'expo-router';
 import StatCard from '../components/StatCard';
 import TaskItem from '../components/TaskItem';
 import { consultarMaterias } from '../services/materiasService';
 import { consultarTarefas } from '../services/tarefasService';
 import { isTaskCompleted, mapTaskForDisplay } from '../utils/dataMappers';
-import { TEST_USER_ID } from '../config/testUser';
+import { useAuth } from '../context/AuthContext';
 import { palette, sharedStyles } from '../styles/theme';
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   useFocusEffect(useCallback(() => {
     let active = true;
-    if (!TEST_USER_ID) {
+    if (!user) {
       setTasks([]); setSubjects([]); setError(null); setLoading(false);
       return () => { active = false; };
     }
     setLoading(true); setError(null);
-    Promise.all([consultarTarefas(TEST_USER_ID), consultarMaterias(TEST_USER_ID)])
+    Promise.all([consultarTarefas(), consultarMaterias()])
       .then(([nextTasks, nextSubjects]) => { if (active) { setTasks(nextTasks); setSubjects(nextSubjects); } })
       .catch((e) => { if (active) setError(e.message || 'Não foi possível carregar o resumo.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []));
+  }, [user]));
   const pending = tasks.filter((task) => !isTaskCompleted(task)).length;
   const completed = tasks.length - pending;
   const upcoming = tasks.filter((task) => !isTaskCompleted(task)).slice()
@@ -43,17 +44,16 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.greeting}>{'Olá!'}</Text>
         <Text style={styles.subtext}>Sua rotina escolar organizada, em um só lugar.</Text>
         <View style={styles.quickActions}>
-          <TouchableOpacity style={[sharedStyles.primaryButton, styles.actionButton]} onPress={() => navigation.navigate('Tasks')}><Text style={sharedStyles.primaryButtonText}>Ver tarefas</Text></TouchableOpacity>
-          <TouchableOpacity style={[sharedStyles.secondaryButton, styles.actionButton]} onPress={() => navigation.navigate('Subjects')}><Text style={sharedStyles.secondaryButtonText}>{'Matérias'}</Text></TouchableOpacity>
+          <TouchableOpacity style={[sharedStyles.primaryButton, styles.actionButton]} onPress={() => router.navigate('/tarefas')}><Text style={sharedStyles.primaryButtonText}>Ver tarefas</Text></TouchableOpacity>
+          <TouchableOpacity style={[sharedStyles.secondaryButton, styles.actionButton]} onPress={() => router.navigate('/materias')}><Text style={sharedStyles.secondaryButtonText}>{'Matérias'}</Text></TouchableOpacity>
         </View>
       </View>
       <Text style={sharedStyles.sectionTitle}>Resumo</Text>
       {loading && <ActivityIndicator color={palette.bordo} style={styles.loading} />}
-      {!TEST_USER_ID && <Text style={styles.message}>Defina EXPO_PUBLIC_TEST_USER_ID em .env.local para usar a API.</Text>}
       {!!error && <Text style={styles.error}>{error}</Text>}
       <View style={styles.statsRow}>{stats.map((stat) => <StatCard key={stat.label} label={stat.label} value={stat.value} tone={stat.tone} />)}</View>
       <Text style={sharedStyles.sectionTitle}>{'Próximas atividades'}</Text>
-      {!loading && !error && !!TEST_USER_ID && upcoming.length === 0 && <Text style={styles.message}>Nenhuma atividade pendente no momento.</Text>}
+      {!loading && !error && !!user && upcoming.length === 0 && <Text style={styles.message}>Nenhuma atividade pendente no momento.</Text>}
       <View style={styles.taskList}>{upcoming.map((task) => <TaskItem key={task.id} task={task} />)}</View>
     </View>
   </ScrollView>;

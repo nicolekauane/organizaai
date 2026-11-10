@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View, StyleSheet } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { router, useFocusEffect } from 'expo-router';
 import FormModal from '../components/FormModal';
 import DatePickerField from '../components/DatePickerField';
 import TaskItem from '../components/TaskItem';
@@ -8,7 +8,7 @@ import { consultarTarefas, criarTarefa, atualizarTarefa, excluirTarefa } from '.
 import { consultarMaterias } from '../services/materiasService';
 import { mapTaskForDisplay } from '../utils/dataMappers';
 import { confirmAction } from '../utils/confirmAction';
-import { TEST_USER_ID } from '../config/testUser';
+import { useAuth } from '../context/AuthContext';
 import { palette, sharedStyles } from '../styles/theme';
 
 const priorities = [{ value: 'baixa', label: 'Baixa' }, { value: 'media', label: 'Média' }, { value: 'alta', label: 'Alta' }];
@@ -29,7 +29,8 @@ function Choices({ options, value, onChange }) {
   return <View style={styles.choices}>{options.map((item) => <TouchableOpacity key={item.value} onPress={() => onChange(item.value)} style={[styles.choice, value === item.value && styles.selected]} accessibilityRole="button" accessibilityState={{ selected: value === item.value }}><Text style={[styles.choiceText, value === item.value && styles.selectedText]}>{item.label}</Text></TouchableOpacity>)}</View>;
 }
 
-export default function TasksScreen({ navigation }) {
+export default function TasksScreen() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,17 +46,18 @@ export default function TasksScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    if (!TEST_USER_ID) {
+    if (!user) {
       setTasks([]); setSubjects([]); setError(null); setLoading(false);
       return () => { active = false; };
     }
     setLoading(true); setError(null);
-    Promise.all([consultarTarefas(TEST_USER_ID), consultarMaterias(TEST_USER_ID)])
+    Promise.all([consultarTarefas(), consultarMaterias()])
       .then(([nextTasks, nextSubjects]) => { if (active) { setTasks(nextTasks); setSubjects(nextSubjects); } })
       .catch((e) => { if (active) setError(e.message || 'Não foi possível carregar as tarefas.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [refreshKey]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Refresh key deliberately reloads after mutations.
+  }, [refreshKey, user]));
 
   function openNew() { setEditing(null); setForm(emptyForm); setFormError(null); setVisible(true); }
   function openEdit(task) {
@@ -69,7 +71,7 @@ export default function TasksScreen({ navigation }) {
     setFormError(null); setVisible(true);
   }
   async function save() {
-    if (!TEST_USER_ID || saving) return;
+    if (!user || saving) return;
     const title = form.titulo.trim();
     if (!title) { setFormError('Informe o título da tarefa.'); return; }
     if (title.length > 150) { setFormError('O título aceita até 150 caracteres.'); return; }
@@ -81,8 +83,8 @@ export default function TasksScreen({ navigation }) {
         titulo: title, descricao: form.descricao.trim() || null, data_entrega: dueDate || null,
         prioridade: form.prioridade, status: form.status, materia_id: form.materia_id ? Number(form.materia_id) : null,
       };
-      if (editing) await atualizarTarefa(editing.id, data, TEST_USER_ID);
-      else await criarTarefa(data, TEST_USER_ID);
+      if (editing) await atualizarTarefa(editing.id, data);
+      else await criarTarefa(data);
       setVisible(false); setRefreshKey((key) => key + 1);
     } catch (e) { setFormError(e.message || 'Não foi possível salvar a tarefa.'); }
     finally { setSaving(false); }
@@ -96,7 +98,7 @@ export default function TasksScreen({ navigation }) {
         titulo: task.titulo, descricao: task.descricao, data_entrega: task.data_entrega,
         prioridade: task.prioridade, status: task.status === 'concluida' ? 'pendente' : 'concluida',
         materia_id: task.materia_id,
-      }, TEST_USER_ID);
+      });
       setRefreshKey((key) => key + 1);
     } catch (e) { setError(e.message || 'Não foi possível atualizar o status.'); }
     finally { actionLock.current = false; setBusyId(null); }
@@ -107,14 +109,14 @@ export default function TasksScreen({ navigation }) {
     const ok = await confirmAction('Excluir tarefa', 'Deseja excluir "' + task.titulo + '"? Essa ação não pode ser desfeita.');
     if (!ok) { actionLock.current = false; return; }
     setBusyId(String(task.id)); setError(null);
-    try { await excluirTarefa(task.id, TEST_USER_ID); setRefreshKey((key) => key + 1); }
+    try { await excluirTarefa(task.id); setRefreshKey((key) => key + 1); }
     catch (e) { setError(e.message || 'Não foi possível excluir a tarefa.'); }
     finally { actionLock.current = false; setBusyId(null); }
   }
 
   function goToSubjects() {
     setVisible(false);
-    navigation.navigate('Subjects');
+    router.navigate('/materias');
   }
 
   const matterOptions = [{ value: '', label: 'Sem matéria' }, ...subjects.map((item) => ({ value: String(item.id), label: item.nome }))];
@@ -123,19 +125,18 @@ export default function TasksScreen({ navigation }) {
     <View style={sharedStyles.container}>
       <View style={styles.headerRow}>
         <Text style={sharedStyles.title}>Tarefas</Text>
-        <TouchableOpacity style={sharedStyles.secondaryButton} onPress={() => navigation.navigate('Home')}><Text style={sharedStyles.secondaryButtonText}>Início</Text></TouchableOpacity>
+        <TouchableOpacity style={sharedStyles.secondaryButton} onPress={() => router.navigate('/')}><Text style={sharedStyles.secondaryButtonText}>Início</Text></TouchableOpacity>
       </View>
-      <TouchableOpacity style={[sharedStyles.primaryButton, styles.newButton, (loading || !TEST_USER_ID) && styles.disabledButton]} onPress={openNew} disabled={!TEST_USER_ID || loading || !!busyId}><Text style={sharedStyles.primaryButtonText}>+ Nova tarefa</Text></TouchableOpacity>
-      <Text style={styles.summary}>{!TEST_USER_ID ? 'Configure o usuário de teste para carregar suas tarefas.' : 'Você tem ' + tasks.length + (tasks.length === 1 ? ' tarefa cadastrada.' : ' tarefas cadastradas.')}</Text>
+      <TouchableOpacity style={[sharedStyles.primaryButton, styles.newButton, (loading || !user) && styles.disabledButton]} onPress={openNew} disabled={!user || loading || !!busyId}><Text style={sharedStyles.primaryButtonText}>+ Nova tarefa</Text></TouchableOpacity>
+      <Text style={styles.summary}>{!user ? 'Entre na sua conta para carregar suas tarefas.' : 'Você tem ' + tasks.length + (tasks.length === 1 ? ' tarefa cadastrada.' : ' tarefas cadastradas.')}</Text>
       {loading && <ActivityIndicator color={palette.bordo} style={styles.loading} />}
-      {!TEST_USER_ID && <Text style={styles.stateMessage}>Defina EXPO_PUBLIC_TEST_USER_ID em .env.local para usar a API.</Text>}
       {!!error && <View><Text style={styles.errorMessage}>{error}</Text><TouchableOpacity onPress={() => setRefreshKey((key) => key + 1)}><Text style={styles.retry}>Tentar novamente</Text></TouchableOpacity></View>}
-      {!loading && !error && !!TEST_USER_ID && tasks.length === 0 && <Text style={styles.stateMessage}>Nenhuma tarefa encontrada. Cadastre a primeira.</Text>}
+      {!loading && !error && !!user && tasks.length === 0 && <Text style={styles.stateMessage}>Nenhuma tarefa encontrada. Cadastre a primeira.</Text>}
       {tasks.map((task) => <View key={task.id} style={busyId === String(task.id) && styles.busy} pointerEvents={busyId ? 'none' : 'auto'}>
         <TaskItem task={mapTaskForDisplay(task, subjects)} onEdit={() => openEdit(task)} onDelete={() => remove(task)} onToggleComplete={() => toggleComplete(task)} />
         {busyId === String(task.id) && <ActivityIndicator color={palette.bordo} />}
       </View>)}
-      <TouchableOpacity style={sharedStyles.secondaryButton} onPress={() => navigation.navigate('Subjects')}><Text style={sharedStyles.secondaryButtonText}>Ver matérias</Text></TouchableOpacity>
+      <TouchableOpacity style={sharedStyles.secondaryButton} onPress={() => router.navigate('/materias')}><Text style={sharedStyles.secondaryButtonText}>Ver matérias</Text></TouchableOpacity>
     </View>
     <FormModal visible={visible} title={editing ? 'Editar tarefa' : 'Nova tarefa'} onClose={() => !saving && setVisible(false)} onSubmit={save} submitLabel={editing ? 'Salvar alterações' : 'Cadastrar tarefa'} submitting={saving} error={formError}>
       <Field label="Título *" value={form.titulo} onChangeText={(titulo) => setForm({ ...form, titulo })} maxLength={150} placeholder="Ex.: Revisar exercícios" autoCapitalize="sentences" />
