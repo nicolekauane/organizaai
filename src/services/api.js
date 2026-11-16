@@ -1,5 +1,5 @@
 import { authSession } from '../auth/session.js';
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+export const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000').trim().replace(/\/+$/, '');
 export class ApiError extends Error {
   constructor(message, status = null) { super(message); this.name = 'ApiError'; this.status = status; }
 }

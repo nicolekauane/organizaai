@@ -1,5 +1,23 @@
 # Organiza Aí
 
+## Entrega 4 — finalização Android
+
+Estado atual: projeto EAS `@nicolemueller/organiza-ai` vinculado, projectId `30959e81-fead-4f38-a92d-3890feaf0efd`. O usuário iniciou um build `apk-local`; o resultado e a instalação física ainda aguardam confirmação. A variável `EXPO_PUBLIC_API_URL` foi configurada pelo usuário no ambiente EAS `preview` como `http://172.20.135.67:3000`. Não iniciar outro build enquanto o atual estiver em andamento.
+
+Tecnologias: React Native 0.88.1, React 19.3, Expo SDK 58, Expo Router, JavaScript/TypeScript, Node.js/Express 5, MySQL >= 8.0.16, JWT, scrypt, ESLint e EAS Build. Funcionalidades: cadastro/login de Aluno e Responsável, CRUD de tarefas/matérias do Aluno, resumo/progresso e solicitação, autorização, recusa e revogação de acompanhamento somente leitura.
+
+Para executar com o ambiente existente: `npm --prefix backend start` em um terminal; na raiz, configure `EXPO_PUBLIC_API_URL` no terminal com a origem real da API e execute `npm start` ou `npm run web`. Instalação nova de dependências usa `npm ci` na raiz e no backend. Configure um banco novo conforme [database/README.md](database/README.md); no banco existente, não reimporte SQL nem reaplique migrações. Preserve backend/.env e JWT_SECRET; o banco não é acessado diretamente pelo celular.
+
+O APK local depende de computador/API/MySQL ligados, IP correto e mesma rede Wi-Fi; localhost no celular não aponta para o computador. HTTP é permitido apenas no perfil de avaliação apk-local; o perfil apk exige HTTPS. A URL é incorporada no build. Abra `/api/health` no navegador do Android para validar a rede. A sessão JWT continua em memória e exige login após reiniciar o app.
+
+- [Guia da Entrega 4: execução, banco, API, EAS, geração/instalação e testes](docs/ENTREGA_4_APK.md).
+- [Roteiro curto de apresentação para a escola](docs/APRESENTACAO_ENTREGA_4.md).
+- [Checklist final e registro das evidências do APK](docs/CHECKLIST_ENTREGA_4.md).
+
+Validação desta revisão: 27 testes frontend e 33 backend aprovados; 1 MySQL opt-in desativado; lint, typecheck, Expo Doctor 20/20, dependências compatíveis, compilação Web e smoke de perfis (API simulada, largura 390 px) aprovados. A compilação Android passou na preparação anterior. Pendentes: conclusão do build já iniciado, instalação/conectividade/fluxos no Android, ensaio e commit/push após confirmação. A documentação está pronta; a entrega Android não deve ser marcada concluída antes dos testes físicos. A instalação anterior reportou 8 alertas moderados de dependências; não foi aplicada correção forçada.
+
+A branch de trabalho permanece entrega-3. Nenhum commit, push, merge, alteração de .env/JWT_SECRET/banco ou configuração remota foi feito nesta revisão. A futura publicação deve ter destino explícito origin/entrega-3, preservando master. As seções abaixo conservam o histórico da Entrega 3; o estado atual do APK é o registrado acima.
+
 Aplicativo de organização escolar com React Native, Expo SDK 58 e Expo Router para Android, iOS e Web. API Node.js/Express com MySQL.
 
 ## Entrega 3 - autenticação integrada
@@ -120,3 +138,6 @@ Usuário confirmou login do aluno, preservação das tarefas/matérias, cadastro
 Testes repetidos: frontend 26 aprovados; backend 33 aprovados e 1 MySQL opt-in não executado; lint, typecheck, compilação Web, smoke e Expo Doctor 20/20 aprovados. [Análise dos alertas e segurança](docs/SEGURANCA_ENTREGA_3.md): backend zerado; frontend com 10 moderados na consulta atual, sem correção compatível publicada para as duas dependências de origem. Não foi aplicado --force.
 
 Código e documentação preparados para commit/push com os riscos registrados. Substitua localmente o segredo exposto antes do envio final recomendado. Expiração, recusa, renovação após 24 horas, CRUD completo/calendário e dispositivos físicos continuam como testes complementares não confirmados. Nenhum commit/push ou alteração de .env/banco foi realizado neste fechamento.
+## Entrega 4 — preparação do APK Android
+
+Consulte [o guia de APK](docs/ENTREGA_4_APK.md) para URL real da API, perfis `apk-local` (HTTP em rede de teste) e `apk` (HTTPS), pré-requisitos/custos EAS, comandos, instalação e roteiro de avaliação. O usuário já iniciou o build apk-local e configurou a URL no ambiente preview; aguarde esse build e registre o teste físico no checklist. Builds rejeitam localhost e URL ausente.

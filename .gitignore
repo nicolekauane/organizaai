@@ -64,3 +64,9 @@ backups/
 *backup*.zip
 *backup*.7z
 *backup*.tar*
+
+# Android artifacts and local signing credentials
+*.apk
+*.aab
+*.keystore
+credentials.json
