@@ -1,10 +1,10 @@
-﻿# Entrega 4 — APK Android
+# Entrega 4 — APK Android
 
 ## Estado atual
 
 Projeto Expo `@nicolemueller/organiza-ai`, vinculado pelo usuário com `eas init`. O app.json contém owner `nicolemueller`, projectId `30959e81-fead-4f38-a92d-3890feaf0efd`, package Android `br.com.organizaai.app`, versão 1.0.0 e versionCode 1.
 
-Segundo o usuário, o build `apk-local` já foi iniciado e a variável `EXPO_PUBLIC_API_URL` do ambiente remoto `preview` é `http://172.20.135.67:3000`. O resultado desse build e a variável remota não foram consultados nesta revisão. Aguarde o build existente pelo painel [do projeto Expo](https://expo.dev/accounts/nicolemueller/projects/organiza-ai/builds); não inicie outro, não cancele e não altere o ambiente remoto enquanto aguarda. Alterações locais desta revisão são somente documentação e não entram no código já enviado ao build.
+Segundo o usuário, o [build apk-local](https://expo.dev/accounts/nicolemueller/projects/organiza-ai/builds/ba269caf-9115-49da-a5b3-c15d13ce8879) gerou o APK com sucesso e a variável EXPO_PUBLIC_API_URL do ambiente remoto preview é http://172.20.135.67:3000. A variável remota não foi consultada nesta revisão. Instalação e testes no Android permanecem pendentes; alterações de documentação não entram no APK já gerado.
 
 ## Tecnologias, funcionalidades e organização
 
@@ -46,7 +46,7 @@ npm start
 # npm run web
 ```
 
-O backend já escuta sem restringir a interface a localhost. A porta padrão é 3000, salvo configuração existente. `/api/health` verifica a API e `/api/health/db` faz apenas SELECT 1. Nenhuma migração, escrita ou teste MySQL real foi executado nesta revisão.
+O backend já escuta sem restringir a interface a localhost. A porta padrão é 3000, salvo configuração existente. /api/health verifica a API e /api/health/db faz SELECT 1. A conexão real foi confirmada por SELECT 1; não foram executados migração, escrita ou testes completos dos fluxos com o MySQL real.
 
 ## URL da API e limites do Android local
 
@@ -54,7 +54,7 @@ src/services/api.js lê diretamente process.env.EXPO_PUBLIC_API_URL, com trim e 
 
 O fallback localhost serve ao desenvolvimento local no navegador. app.config.js recusa builds com URL ausente ou loopback, e exige HTTPS fora do perfil apk-local. O código/configuração revisados permitem que o APK use o IP informado, mas somente o teste real no celular confirma que rede, firewall e servidor estão acessíveis.
 
-No celular, abra `http://172.20.135.67:3000/api/health` antes de tentar login. Computador e celular precisam estar na mesma rede com comunicação entre clientes liberada. O IP pode mudar ao trocar de rede ou renovar DHCP. O computador, MySQL e API devem permanecer ligados. Fora dessa rede, o APK local não acessará a API. Se a URL mudar, o APK existente continuará usando a URL incorporada; planeje uma nova versão posteriormente, não durante o build atual.
+No celular, abra http://172.20.135.67:3000/api/health antes de tentar login. Computador e celular precisam estar na mesma rede com comunicação entre clientes liberada. O IP pode mudar ao trocar de rede ou renovar DHCP. O computador, MySQL e API devem permanecer ligados. Fora dessa rede, o APK local não acessará a API. Se a URL mudar, o APK existente continuará usando a URL incorporada; planeje uma nova versão posteriormente.
 
 INTERNET está explícita no app.json e não pede permissão em tempo de execução. A introspecção anterior confirmou usesCleartextTraffic=true para apk-local e false para apk. HTTP no perfil local é liberado para o aplicativo inteiro e transmite senha/JWT sem criptografia: restrinja a demonstração a uma rede confiável e contas de teste. Se necessário, libere Node/porta 3000 apenas no perfil de rede privada do firewall; nenhuma regra foi alterada automaticamente. Não exponha MySQL/3306 ou portas do roteador.
 
@@ -66,17 +66,17 @@ O perfil apk-local em eas.json contém `environment: preview`, `distribution: in
 
 O ambiente remoto selecionado fornece EXPO_PUBLIC_API_URL ao servidor EAS. Uma variável só no terminal não substitui a configuração remota. O projectId é um identificador público, não uma credencial. A configuração já está vinculada: não repita eas init.
 
-Comando usado para gerar o APK, apenas como referência de reprodução futura — **não executar enquanto o build atual estiver em andamento**:
+Comando usado para gerar o APK, apenas como referência de reprodução futura — não executar nesta atualização:
 
 ```powershell
 npx eas-cli@latest build --platform android --profile apk-local
 ```
 
-Não foram executados comandos EAS nesta revisão. A assinatura/compilação nativa só ficam confirmadas quando o build terminar com sucesso. Preserve a conta e o keystore para futuras atualizações; não publique credenciais. Não precisa de conta Google Play para instalar diretamente. Revise quota, fila e eventuais custos em [Expo Pricing](https://expo.dev/pricing) antes de qualquer envio futuro; não há contratação nesta etapa. O build não hospeda o backend.
+Não foram executados comandos EAS nesta revisão. O sucesso do build foi informado pelo usuário; a instalação no aparelho ainda não foi verificada. Preserve a conta e o keystore para futuras atualizações; não publique credenciais. Não precisa de conta Google Play para instalar diretamente. Revise quota, fila e eventuais custos em [Expo Pricing](https://expo.dev/pricing) antes de qualquer envio futuro. O build não hospeda o backend.
 
 ## Instalação e testes manuais no Android
 
-Quando o build existente concluir, baixe o .apk pelo link do painel no celular. Permita temporariamente instalação de apps desconhecidos para o navegador/gerenciador usado, instale e revogue a permissão depois. Com Platform Tools e depuração USB autorizada, alternativa: `adb install -r caminho-do-arquivo.apk`. Não desinstale nem apague dados para contornar erro de assinatura sem avaliar o problema.
+Baixe o APK pelo link do build no celular quando um aparelho estiver disponível. Permita temporariamente instalação de apps desconhecidos para o navegador/gerenciador usado, instale e revogue a permissão depois. Com Platform Tools e depuração USB autorizada, alternativa: adb install -r caminho-do-arquivo.apk. Não desinstale nem apague dados para contornar erro de assinatura sem avaliar o problema.
 
 Roteiro pendente para o APK real; use contas e registros próprios de demonstração, preservando os dados existentes:
 
@@ -103,16 +103,16 @@ npx expo export --platform web
 npm run test:web:perfis
 ```
 
-Resultados em 16/11/2026: 27 testes frontend aprovados; 33 backend aprovados e 1 MySQL opt-in desativado; lint e typecheck aprovados; dependências compatíveis e Expo Doctor 20/20. Exportação Web aprovada, 823 módulos. Smoke Edge headless aprovado com API simulada: cadastro/perfis, login/redirecionamento, solicitação, aprovação/recusa, revogação, somente leitura, limpeza após 404 e largura 390 px. Não acessa o banco real. A exportação Android da etapa anterior também passou (1.163 módulos); nenhum desses resultados substitui a instalação do APK.
+Verificação final: 27 testes frontend aprovados; 33 backend aprovados e 1 MySQL opt-in desativado; lint, typecheck e compilação Web aprovados. Expo Doctor: 19/20, recomendando expo ~58.0.26 e expo-router ~58.0.32. API e conexão MySQL responderam aos endpoints de saúde; os fluxos completos com API e banco reais não foram confirmados. Smoke Edge headless aprovado com API simulada e exportação Web anterior: cadastro/perfis, login/redirecionamento, solicitação, aprovação/recusa, revogação, somente leitura, limpeza após 404 e largura 390 px. A exportação Android da etapa anterior também passou; nenhum desses resultados substitui a instalação do APK.
 
 A revisão de sessão/JWT, rotas por perfil, CRUD por proprietário, versionamento das decisões e invalidação após revogação não indicou necessidade de mudanças funcionais para esta etapa. Rolagem, mensagens de erro/carregamento e formulários foram preservados. Typecheck cobre os layouts TypeScript; JavaScript legado permanece com checkJs=false. A instalação anterior reportou 8 alertas moderados; não houve nova auditoria de vulnerabilidades nem audit fix --force. O aviso Node MODULE_TYPELESS_PACKAGE_JSON e avisos de cor do Metro não impediram as verificações.
 
 ## GitHub e fechamento
 
-Repositório: https://github.com/nicolekauane/organizaai. Branch atual entrega-3, rastreando origin/entrega-3. master e origin/master locais permanecem no commit 8936a4c. Não houve fetch nesta revisão, portanto o estado remoto atual não foi confirmado. A publicação futura com destino explícito `git push origin entrega-3` atualiza essa branch, sem merge na master. Esse comando é apenas orientação; não foi executado. Permissões de escrita/proteções remotas também não foram testadas.
+Repositório: https://github.com/nicolekauane/organizaai. A versão anterior foi publicada na branch entrega-3, commit b0e6581, conforme confirmação do usuário. A publicação desta atualização tem como destino exclusivo origin/entrega-3, sem merge na master.
 
 Git status/diff foram revisados. Somente backend/.env.example está versionado entre os arquivos de ambiente listados; .env reais, credenciais locais, backups e builds são ignorados. Não use git add -f. Antes de um futuro commit, confira `git diff --cached --name-only` e `git diff --cached --check`; APK deve ser entregue por link EAS, não incluído no código-fonte. A revisão atual não alterou app.json, app.config.js, eas.json, dependências ou funcionalidades; manteve os ajustes locais da etapa anterior e o vínculo EAS feito pelo usuário.
 
-Pendências e evidências: [checklist final](CHECKLIST_ENTREGA_4.md). Roteiro pronto para ensaio: [apresentação](APRESENTACAO_ENTREGA_4.md). Não marcar geração/instalação, teste físico ou commit/push como concluídos sem confirmação.
+Pendências e evidências: [checklist final](CHECKLIST_ENTREGA_4.md). Roteiro para ensaio: [apresentação](APRESENTACAO_ENTREGA_4.md). O APK foi gerado; instalação e teste físico permanecem pendentes.
 
 Referências: [SDK 58](https://docs.expo.dev/versions/v58.0.0/), [APK](https://docs.expo.dev/build-reference/apk/), [variáveis EAS](https://docs.expo.dev/eas/environment-variables/).
